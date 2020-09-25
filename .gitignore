@@ -1,4 +1,6 @@
 *
 !.gitignore
+!.gitmodules
 !cue_cdtoc2mbtoc.py
 !gain.bat
+!musicbrainz-isrcsubmit

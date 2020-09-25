@@ -1,0 +1,3 @@
+[submodule "musicbrainz-isrcsubmit"]
+	path = musicbrainz-isrcsubmit
+	url = ./musicbrainz-isrcsubmit
