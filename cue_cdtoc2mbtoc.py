@@ -47,7 +47,7 @@ def from_cue(cue: str):
 	def _close_file():
 		nonlocal sector_counter
 		if file is not None:
-			sector_counter += int(file.info.length * SECTORS_PER_SECOND) - last_file_sector
+			sector_counter += round(file.info.length * SECTORS_PER_SECOND) - last_file_sector
 
 	print("PARSING CUE DATA")
 	
@@ -158,8 +158,10 @@ def main(fname):
 			cue = f.read()
 		
 		cue = cue.decode(chardet.detect(cue).get("encoding"))
-
-		os.chdir(os.path.dirname(fname))
+		
+		dir = os.path.dirname(fname)
+		if dir:
+			os.chdir(dir)
 		toc = from_cue(cue)
 	else:  
 		f = mutagen.File(fname)
