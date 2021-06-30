@@ -2,5 +2,10 @@
 !.gitignore
 !.gitmodules
 !cue_cdtoc2mbtoc.py
-!gain.bat
 !musicbrainz-isrcsubmit
+!add_mbz_cue_dialog.sh
+!add_mbz_cue.sh
+!convert-to-utf8.sh
+!gain_album_folder.sh
+!gain_albums.sh
+!rename_dirs_and_files.sh
