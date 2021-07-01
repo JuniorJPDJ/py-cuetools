@@ -75,7 +75,7 @@ tags_to_vars(){
 	[ ! -f "$file" ] && return 1
 
 	# import tags as local variables
-	eval "$(ffprobe -v quiet -print_format json -show_format "$file" | jq -r '.format.tags | with_entries(.key |= (ascii_downcase | gsub("\\s+"; "_")))' | tail -n '+2' | head -n '-1' | sed -e 's/: /=/g' -e 's/,$//' -e 's/^  "/local "tag_/')"
+	eval "$(ffprobe -v quiet -print_format json -show_format "$file" | jq -r '.format.tags | to_entries | map("local \("tag_\(.key)" | ascii_downcase | gsub("\\s+"; "_") | @sh)=\(.value | @sh)") | join("\n")')"
 
 	# run callback function in local scope
 	eval "$callback"
