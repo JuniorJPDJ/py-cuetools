@@ -81,6 +81,20 @@ tags_to_vars(){
 	eval "$callback"
 }
 
+safe_fname(){
+	fname="$1"
+	fname="${fname//\</`printf "\u2039"`}"
+	fname="${fname//\>/`printf "\u203A"`}"
+	fname="${fname//\:/`printf "\u2236"`}"
+	fname="${fname//\"/`printf "\u201D"`}"
+	fname="${fname//\//`printf "\u2044"`}"
+	fname="${fname//\\/`printf "\u2216"`}"
+	fname="${fname//\|/`printf "\u2223"`}"
+	fname="${fname//\?/`printf "\uFF1F"`}"
+	fname="${fname//\*/`printf "\u2217"`}"
+	printf '%s' "$fname"
+}
+
 change_name(){
 	in="$1"
 	out="$2"
@@ -112,7 +126,7 @@ process_file(){
 	last_dir="$(dirname "$file")"
 	
 	# additional files in the same directory
-	new_name="$(format_additional_file)"
+	new_name="$(safe_fname "$(format_additional_file)")"
 	while IFS= read -r -d $'\0' additional_file ; do {
 		echo "Found additional file: $(cfname "$additional_file")"
 		fname="$(basename "$additional_file")"
@@ -125,7 +139,7 @@ process_file(){
 	} <&3 ; done 3>&2 < <(find "$last_dir" -maxdepth 1 -type f -not \( -iname '*.flac' -or -iname '*.mp3' \) -print0)
 
 	# mark disc dir for rename if multidisc (else this is empty)
-	disc_new_name="$(format_disc)"
+	disc_new_name="$(safe_fname "$(format_disc)")"
 
 	# get album dir for single disc releases
 	album_dir="$last_dir"
@@ -133,7 +147,7 @@ process_file(){
 	[ "$disc_new_name" ] && album_dir="$(dirname "$album_dir")" || true
 
 	# mark album dir for rename
-	album_new_name="$(format_album)"
+	album_new_name="$(safe_fname "$(format_album)")"
 
 	#declare -p | grep "tag_"
 }
@@ -173,4 +187,3 @@ process_dir(){
 }
 
 process_dir "$1"
-
