@@ -34,12 +34,11 @@ format_disc(){
 	if [ "$tag_totaldiscs" -gt 1 ] ; then
 		printf '%s' "CD${tag_disc}"
 		[ -z "$tag_discsubtitle" ] || printf '%s' " - ${tag_discsubtitle}"
-		printf '\n'
 	fi
 }
 
 format_album(){
-	printf '%s\n' "${tag_originalyear}. ${tag_album_artist} - ${tag_album}"
+	printf '%s' "${tag_originalyear}. ${tag_album_artist} - ${tag_album}"
 }
 
 format_additional_file(){
@@ -48,7 +47,6 @@ format_additional_file(){
 		printf '%s' " - CD${tag_disc}"
 		[ -z "$tag_discsubtitle" ] || printf '%s' " - ${tag_discsubtitle}"
 	fi
-	printf '\n'
 } 
 
 color(){
@@ -62,6 +60,12 @@ creset(){
 
 cgreen(){
 	color 32
+}
+
+cfname(){
+	# color filename
+	local fname="$1"
+	printf '%s/%s%s%s' "$(dirname "$fname")" "`cgreen`" "$(basename "$fname")" "`creset`"
 }
 
 tags_to_vars(){
@@ -88,11 +92,11 @@ change_name(){
 interactive_rename(){
 	in="$1"
 	out="$2"
-	read -p "Rename \"$(dirname "$in")/`cgreen`$(basename "$in")`creset`\" to \"`cgreen`$out`creset`\"? [Y/n/e]: " answer
+	read -p "Rename \"$(cfname "$in")\" to \"`cgreen`$out`creset`\"? [Y/n/e]: " answer
 	answer=${answer:-y}
 
 	[ "$answer" = "n" ] && return
-	[ "$answer" = "e" ] && answer="y" && read -ep "Rename \"$in\" to: " -i "$out" out || true
+	[ "$answer" = "e" ] && answer="y" && read -ep "Rename \"$(cfname "$in")\" to: " -i "$out" out || true
 	[ "$answer" = "y" ] && change_name "$in" "$out" && return
 
 	echo "Invalid answer."
@@ -106,12 +110,11 @@ process_file(){
 	# TODO: bad idea, need to find ONE suitable file in dir and use it
 	[ "$(dirname "$file")" = "$last_dir" ] && return || true
 	last_dir="$(dirname "$file")"
-	last_file="$file"
 	
 	# additional files in the same directory
 	new_name="$(format_additional_file)"
 	while IFS= read -r -d $'\0' additional_file ; do {
-		echo Found additional file: "$additional_file"
+		echo "Found additional file: $(cfname "$additional_file")"
 		fname="$(basename "$additional_file")"
 		new_name_ext="$new_name.${fname##*.}"
 
@@ -144,7 +147,7 @@ process_files(){
 
 process_dir(){
 	local base_dir="$1"
-	echo "Processing directory: $base_dir"
+	echo "Processing directory: $(cfname "$base_dir")"
 
 	# recursively process child directories
 	while IFS= read -r -d $'\0' dir ; do {
@@ -166,7 +169,7 @@ process_dir(){
 	[ "$(basename "$album_dir")" != "$album_new_name" ] && \
 	interactive_rename "$album_dir" "$album_new_name" || true
 	
-	echo "End of processing of directory: $base_dir"
+	echo "End of processing of directory: $(cfname "$base_dir")"
 }
 
 process_dir "$1"
