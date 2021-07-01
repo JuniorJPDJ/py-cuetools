@@ -8,4 +8,4 @@
 !convert-to-utf8.sh
 !gain_album_folder.sh
 !gain_albums.sh
-!rename_dirs_and_files.sh
+!renamer.sh
