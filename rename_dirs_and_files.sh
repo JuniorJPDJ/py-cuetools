@@ -4,6 +4,9 @@ set -e
 # Supported music files: flac, mp3
 # Files should first be tagged with Musicbrainz Picard
 
+# Looks the best with Picard file naming set to:
+# $if(%tracknumber%,$num(%tracknumber%,2). ,)%artist% - %title%
+
 # This script expects folder tree like that:
 
 # Main Music Directory (Library)
