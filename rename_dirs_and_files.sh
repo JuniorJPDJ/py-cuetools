@@ -1,6 +1,7 @@
 #!/bin/bash
-set -ex
+set -e
 
+# Supported music files: flac, mp3
 # Files should first be tagged with Musicbrainz Picard
 
 # This script expects folder tree like that:
@@ -26,7 +27,7 @@ set -ex
 # |- ...
 
 
-function format_disc(){
+format_disc(){
 	if [ "$tag_totaldiscs" -gt 1 ] ; then
 		printf '%s' "CD${tag_disc}"
 		[ -z "$tag_discsubtitle" ] || printf '%s' " - ${tag_discsubtitle}"
@@ -34,20 +35,33 @@ function format_disc(){
 	fi
 }
 
-function format_album(){
+format_album(){
 	printf '%s\n' "${tag_originalyear}. ${tag_album_artist} - ${tag_album}"
 }
 
-function format_additional_file(){
+format_additional_file(){
 	printf '%s' "00. ${tag_album_artist} - ${tag_album}"
 	if [ "$tag_totaldiscs" -gt 1 ] ; then
-		printf '%s' " - ${tag_media}${tag_disc}"
+		printf '%s' " - CD${tag_disc}"
 		[ -z "$tag_discsubtitle" ] || printf '%s' " - ${tag_discsubtitle}"
 	fi
 	printf '\n'
 } 
 
-function tags_to_vars(){
+color(){
+	color="$1"
+	printf '\e[%sm' "$1"
+}
+
+creset(){
+	color 0
+}
+
+cgreen(){
+	color 32
+}
+
+tags_to_vars(){
 	file="$1"
 	callback="$2"
 
@@ -60,7 +74,7 @@ function tags_to_vars(){
 	eval "$callback"
 }
 
-function change_name(){
+change_name(){
 	in="$1"
 	out="$2"
 	pushd "$(dirname "$1")" > /dev/null
@@ -68,10 +82,10 @@ function change_name(){
 	popd > /dev/null
 }
 
-function interactive_rename(){
+interactive_rename(){
 	in="$1"
 	out="$2"
-	read -p "Rename \"$in\" to \"$out\"? [Y/n/e]: " answer
+	read -p "Rename \"$(dirname "$in")/`cgreen`$(basename "$in")`creset`\" to \"`cgreen`$out`creset`\"? [Y/n/e]: " answer
 	answer=${answer:-y}
 
 	[ "$answer" = "n" ] && return
@@ -82,10 +96,14 @@ function interactive_rename(){
 	interactive_rename "$in" "$out"
 }
 
-function scoped(){
+process_file(){
+	# should be called as tags_as_vars callback - depends on tags
+
 	# don't process the same directory more than once
+	# TODO: bad idea, need to find ONE suitable file in dir and use it
 	[ "$(dirname "$file")" = "$last_dir" ] && return || true
 	last_dir="$(dirname "$file")"
+	last_file="$file"
 	
 	# additional files in the same directory
 	new_name="$(format_additional_file)"
@@ -93,42 +111,60 @@ function scoped(){
 		echo Found additional file: "$additional_file"
 		fname="$(basename "$additional_file")"
 		new_name_ext="$new_name.${fname##*.}"
-		if [ -f "$additional_file" ] ; then
-			[ "$fname" != "$new_name_ext" ] && interactive_rename "$additional_file" "$new_name_ext" || true 
-		fi
+
+		[ -f "$additional_file" ] && \
+		[ "$fname" != "$new_name_ext" ] && \
+		interactive_rename "$additional_file" "$new_name_ext" || true 
+
 	} <&3 ; done 3>&2 < <(find "$last_dir" -maxdepth 1 -type f -not \( -iname '*.flac' -or -iname '*.mp3' \) -print0)
 
-	# rename disc dir if multidisc
+	# mark disc dir for rename if multidisc (else this is empty)
 	disc_new_name="$(format_disc)"
-	[ "$disc_new_name" ] && [ "$(basename "$last_dir")" != "$disc_new_name" ] && interactive_rename "$last_dir" "$disc_new_name" || true
 
 	# get album dir for single disc releases
 	album_dir="$last_dir"
 	# get album dir for multidisc releases
 	[ "$disc_new_name" ] && album_dir="$(dirname "$album_dir")" || true
 
+	# mark album dir for rename
 	album_new_name="$(format_album)"
-	[ "$(basename "$album_dir")" != "$album_new_name" ] && interactive_rename "$album_dir" "$album_new_name" || true
 
-	#echo Disc dir:
-	#format_disc
-	#echo Album dir:
-	#format_album
-	#echo Additional files base name:
-	#format_additional_file
 	#declare -p | grep "tag_"
-
-	# TODO: Rename directories
 }
 
-function process_files(){
+process_files(){
 	dir="$1"
 	while IFS= read -r -d $'\0' file ; do {
-		tags_to_vars "$file" scoped
-	} <&3 ; done 3>&2 < <(find "$dir" -type f -and \( -iname '*.flac' -or -iname '*.mp3' \) -and -print0)
+		tags_to_vars "$file" process_file
+	} <&3 ; done 3>&2 < <(find "$dir" -maxdepth 1 -type f -and \( -iname '*.flac' -or -iname '*.mp3' \) -and -print0)
 }
 
-#interactive_rename "$1" "$2"
-#tags_to_vars "$1" scoped
-process_files "$1"
+process_dir(){
+	local base_dir="$1"
+	echo "Processing directory: $base_dir"
+
+	# recursively process child directories
+	while IFS= read -r -d $'\0' dir ; do {
+		[ "$dir" = "$base_dir" ] && continue
+		process_dir "$dir"
+		#echo "$dir"
+	} <&3 ; done 3>&2 < <(find "$base_dir" -maxdepth 1 -type d -print0)
+
+	process_files "$base_dir"
+
+	# try renaming if this is disc dir
+	[ "$disc_new_name" ] && \
+	[ "$base_dir" = "$last_dir" ] && \
+	[ "$(basename "$last_dir")" != "$disc_new_name" ] && \
+	interactive_rename "$last_dir" "$disc_new_name" || true
+
+	# try renaming if this is album dir
+	[ "$base_dir" = "$album_dir" ] && \
+	[ "$(basename "$album_dir")" != "$album_new_name" ] && \
+	interactive_rename "$album_dir" "$album_new_name" || true
+	
+	echo "End of processing of directory: $base_dir"
+}
+
+process_dir "$1"
 
